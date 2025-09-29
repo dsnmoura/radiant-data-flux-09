@@ -15,7 +15,12 @@ import {
   Check,
   Play,
   Image,
-  MessageCircle
+  MessageCircle,
+  Facebook,
+  Twitter,
+  Youtube,
+  Phone,
+  Hash
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -58,6 +63,48 @@ const CreatePost = () => {
       description: "Vídeos curtos",
       color: "from-gray-800 to-black"
     },
+    { 
+      id: "facebook", 
+      name: "Facebook", 
+      icon: Facebook, 
+      description: "Posts e Stories",
+      color: "from-blue-500 to-blue-700"
+    },
+    { 
+      id: "twitter", 
+      name: "X (Twitter)", 
+      icon: Twitter, 
+      description: "Tweets e threads",
+      color: "from-gray-700 to-black"
+    },
+    { 
+      id: "youtube", 
+      name: "YouTube", 
+      icon: Youtube, 
+      description: "Shorts e posts",
+      color: "from-red-500 to-red-700"
+    },
+    { 
+      id: "whatsapp", 
+      name: "WhatsApp", 
+      icon: Phone, 
+      description: "Status e mensagens",
+      color: "from-green-500 to-green-700"
+    },
+    { 
+      id: "pinterest", 
+      name: "Pinterest", 
+      icon: Image, 
+      description: "Pins e boards",
+      color: "from-red-400 to-pink-500"
+    },
+    { 
+      id: "threads", 
+      name: "Threads", 
+      icon: Hash, 
+      description: "Posts em threads",
+      color: "from-purple-500 to-indigo-600"
+    },
   ];
 
   const templates = {
@@ -89,6 +136,84 @@ const CreatePost = () => {
         name: "Vídeo Viral", 
         icon: Play, 
         description: "Vídeo curto e envolvente"
+      }
+    ],
+    facebook: [
+      { 
+        id: "fb-post", 
+        name: "Post Feed", 
+        icon: Image, 
+        description: "Post para timeline do Facebook"
+      },
+      { 
+        id: "fb-story", 
+        name: "Story", 
+        icon: Play, 
+        description: "Story vertical temporário"
+      }
+    ],
+    twitter: [
+      { 
+        id: "tw-tweet", 
+        name: "Tweet", 
+        icon: MessageCircle, 
+        description: "Tweet simples e direto"
+      },
+      { 
+        id: "tw-thread", 
+        name: "Thread", 
+        icon: Hash, 
+        description: "Sequência de tweets conectados"
+      }
+    ],
+    youtube: [
+      { 
+        id: "yt-short", 
+        name: "YouTube Short", 
+        icon: Play, 
+        description: "Vídeo vertical curto"
+      },
+      { 
+        id: "yt-post", 
+        name: "Post Comunidade", 
+        icon: Image, 
+        description: "Post na aba Comunidade"
+      }
+    ],
+    whatsapp: [
+      { 
+        id: "wa-status", 
+        name: "Status", 
+        icon: Play, 
+        description: "Status temporário"
+      }
+    ],
+    pinterest: [
+      { 
+        id: "pin-image", 
+        name: "Pin Imagem", 
+        icon: Image, 
+        description: "Pin com imagem atrativa"
+      },
+      { 
+        id: "pin-video", 
+        name: "Pin Vídeo", 
+        icon: Play, 
+        description: "Pin com vídeo dinâmico"
+      }
+    ],
+    threads: [
+      { 
+        id: "th-post", 
+        name: "Post Thread", 
+        icon: MessageCircle, 
+        description: "Post simples no Threads"
+      },
+      { 
+        id: "th-thread", 
+        name: "Thread Longa", 
+        icon: Hash, 
+        description: "Sequência de posts conectados"
       }
     ]
   };
@@ -311,7 +436,7 @@ const CreatePost = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {networks.map((network) => (
                 <div
                   key={network.id}
@@ -495,161 +620,83 @@ const CreatePost = () => {
         />
       )}
 
-      {/* Passo 4: Post Gerado */}
+      {/* Passo 4: Resultado */}
       {currentStep === 4 && generatedPost && (
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl flex items-center justify-center gap-2">
               <Check className="h-6 w-6 text-green-500" />
-              Post Criado com Sucesso!
+              Conteúdo Gerado com Sucesso!
             </CardTitle>
             <CardDescription>
-              Seu conteúdo foi gerado e está pronto para uso
+              Seu post está pronto para ser publicado no {networks.find(n => n.id === selectedNetwork)?.name}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Preview do Post Gerado */}
-            <div className="bg-muted/30 rounded-lg p-6 space-y-4">
-              <div className="text-center">
-                <Badge className="mb-4">{networks.find(n => n.id === selectedNetwork)?.name}</Badge>
-                <div className="aspect-square max-w-sm mx-auto bg-white rounded-lg shadow-card p-4 flex items-center justify-center">
-                  {generatedPost?.generated_images?.length > 0 ? (
-                    <img 
-                      src={generatedPost.generated_images[0].url} 
-                      alt="Post gerado"
-                      className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        console.error('Erro ao carregar imagem:', e);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="text-center space-y-2">
-                      <Image className="h-12 w-12 text-primary mx-auto" />
-                      <p className="text-sm font-medium">Post Visual</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isGenerating ? "Gerando imagens com IA..." : "Imagem não gerada pela IA"}
-                      </p>
-                      {isGenerating && (
-                        <div className="mt-2">
-                          <div className="animate-pulse text-xs text-muted-foreground">
-                            Aguarde 30-60 segundos para geração das imagens...
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+            {/* Caption */}
+            {generatedPost.caption && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">Legenda:</h3>
+                <div className="p-4 bg-muted/50 rounded-lg border">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {generatedPost.caption}
+                  </p>
                 </div>
               </div>
-              
-              {generatedPost.caption && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Legenda:</h4>
-                  <div className="bg-background rounded-lg p-3 text-sm">
-                    {generatedPost.caption}
-                  </div>
-                </div>
-              )}
-              
-              {generatedPost.hashtags && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Hashtags:</h4>
-                  <div className="bg-background rounded-lg p-3 text-sm text-primary break-words overflow-wrap-anywhere">
-                    {Array.isArray(generatedPost.hashtags) 
-                      ? generatedPost.hashtags.join(' ')
-                      : generatedPost.hashtags
-                    }
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
 
-            <div className="flex justify-between gap-4">
-              <Button onClick={prevStep} variant="outline">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Editar Post
+            {/* Hashtags */}
+            {generatedPost.hashtags && generatedPost.hashtags.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">Hashtags:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {generatedPost.hashtags.map((hashtag: string, index: number) => (
+                    <Badge key={index} variant="secondary" className="text-sm">
+                      {hashtag.startsWith('#') ? hashtag : `#${hashtag}`}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Generated Images */}
+            {generatedPost.generated_images && generatedPost.generated_images.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">Imagens Geradas:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {generatedPost.generated_images.map((image: any, index: number) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image.url}
+                        alt={`Generated image ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg border shadow-sm group-hover:shadow-md transition-shadow"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Model Info */}
+            {generatedPost.model_used && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4" />
+                <span>Gerado com {generatedPost.model_used}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-between pt-4">
+              <Button onClick={() => setCurrentStep(1)} variant="outline">
+                Criar Novo Post
               </Button>
-              <div className="flex gap-2">
-                <Button 
-                  variant="secondary"
-                  onClick={() => {
-                    if (generatedPost?.generated_images?.length > 0) {
-                      // Baixar todas as imagens geradas
-                      generatedPost.generated_images.forEach((image, index) => {
-                        let downloadUrl = image.url;
-                        let filename = `post-image-${index + 1}.png`;
-                        
-                        // Se a imagem é base64, converter para blob
-                        if (image.url && image.url.startsWith('data:image')) {
-                          const link = document.createElement('a');
-                          link.href = image.url;
-                          link.download = filename;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        } else if (image.image) {
-                          // Se temos base64 na propriedade image
-                          const dataUrl = `data:image/png;base64,${image.image}`;
-                          const link = document.createElement('a');
-                          link.href = dataUrl;
-                          link.download = filename;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        } else if (image.url) {
-                          // URL externa
-                          const link = document.createElement('a');
-                          link.href = image.url;
-                          link.download = filename;
-                          link.target = '_blank';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }
-                      });
-                      toast.success(`${generatedPost.generated_images.length} imagem(ns) baixada(s) com sucesso!`);
-                    } else {
-                      toast.error("Nenhuma imagem foi gerada pela IA");
-                    }
-                  }}
-                >
-                  Baixar Imagem{generatedPost?.generated_images?.length > 1 ? 's' : ''}
+              <div className="flex gap-3">
+                <Button variant="outline">
+                  Salvar Rascunho
                 </Button>
-                <Button 
-                  className="gradient-primary"
-                  onClick={async () => {
-                    if (!generatedPost) {
-                      toast.error("Nenhum post gerado para salvar");
-                      return;
-                    }
-
-                    try {
-                      // Criar um objeto com os dados do post
-                      const postData = {
-                        network: selectedNetwork,
-                        template: selectedTemplate,
-                        caption: generatedPost.caption,
-                        hashtags: Array.isArray(generatedPost.hashtags) 
-                          ? generatedPost.hashtags.join(' ')
-                          : generatedPost.hashtags,
-                        images: generatedPost.generated_images || [],
-                        model_used: generatedPost.model_used || 'glm-4.5-air',
-                        created_at: new Date().toISOString()
-                      };
-
-                      // Copiar dados para a área de transferência
-                      const postText = `${generatedPost.caption}\n\n${Array.isArray(generatedPost.hashtags) ? generatedPost.hashtags.join(' ') : generatedPost.hashtags}`;
-                      
-                      await navigator.clipboard.writeText(postText);
-                      toast.success("Post copiado para a área de transferência!");
-                      
-                    } catch (error) {
-                      console.error('Erro ao copiar post:', error);
-                      toast.error("Erro ao copiar o post");
-                    }
-                  }}
-                >
-                  Copiar Post
+                <Button className="gradient-primary">
+                  Publicar Agora
                 </Button>
               </div>
             </div>
