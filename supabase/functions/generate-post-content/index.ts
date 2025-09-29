@@ -187,16 +187,76 @@ const generateImageContent = async (prompts: string[], network: string): Promise
   const maxImages = Math.min(prompts.length, 3);
   const generatedImages: any[] = [];
   
-  // Try OpenAI DALL-E first
+  // Try OpenAI GPT-Image-1 first (newest and most reliable)
   if (openAIApiKey) {
-    log('info', 'Attempting OpenAI DALL-E generation');
+    log('info', 'Attempting OpenAI GPT-Image-1 generation');
     
     for (let i = 0; i < maxImages; i++) {
       try {
         const enhancedPrompt = `${prompts[i]}. High quality, professional, suitable for ${network} social media post. Modern design, vibrant colors, engaging composition.`;
         
         const imageData = await withRetry(async () => {
-          log('info', `Generating image ${i + 1}/${maxImages} with DALL-E`);
+          log('info', `Generating image ${i + 1}/${maxImages} with GPT-Image-1`);
+          
+          const response = await withTimeout(
+            fetch('https://api.openai.com/v1/images/generations', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openAIApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-image-1',
+                prompt: enhancedPrompt,
+                size: '1024x1024',
+                quality: 'high',
+                output_format: 'png'
+              }),
+            }),
+            60000 // 60 second timeout for image generation
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`GPT-Image-1 API error ${response.status}: ${errorText}`);
+          }
+
+          return await response.json();
+        }, 2, 3000);
+
+        // GPT-Image-1 always returns base64
+        if (imageData.data?.[0]?.b64_json) {
+          const dataUrl = `data:image/png;base64,${imageData.data[0].b64_json}`;
+          generatedImages.push({
+            prompt: prompts[i],
+            url: dataUrl,
+            image: imageData.data[0].b64_json,
+            format: 'png',
+            revised_prompt: imageData.data[0].revised_prompt || prompts[i]
+          });
+          log('info', `Image ${i + 1} generated successfully with GPT-Image-1`);
+        }
+        
+        // Delay between requests
+        if (i < maxImages - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        log('error', `GPT-Image-1 generation failed for image ${i + 1}`, { error: (error as Error).message });
+      }
+    }
+  }
+  
+  // Fallback to DALL-E-3 if no images generated
+  if (generatedImages.length === 0 && openAIApiKey) {
+    log('info', 'Falling back to DALL-E-3');
+    
+    for (let i = 0; i < maxImages; i++) {
+      try {
+        const enhancedPrompt = `${prompts[i]}. High quality, professional, suitable for ${network} social media post. Modern design, vibrant colors, engaging composition.`;
+        
+        const imageData = await withRetry(async () => {
+          log('info', `Generating image ${i + 1}/${maxImages} with DALL-E-3`);
           
           const response = await withTimeout(
             fetch('https://api.openai.com/v1/images/generations', {
@@ -214,12 +274,12 @@ const generateImageContent = async (prompts: string[], network: string): Promise
                 response_format: 'b64_json'
               }),
             }),
-            60000 // 60 second timeout for image generation
+            60000
           );
 
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`DALL-E API error ${response.status}: ${errorText}`);
+            throw new Error(`DALL-E-3 API error ${response.status}: ${errorText}`);
           }
 
           return await response.json();
@@ -234,7 +294,7 @@ const generateImageContent = async (prompts: string[], network: string): Promise
             format: 'png',
             revised_prompt: imageData.data[0].revised_prompt || prompts[i]
           });
-          log('info', `Image ${i + 1} generated successfully with DALL-E`);
+          log('info', `Image ${i + 1} generated successfully with DALL-E-3`);
         }
         
         // Delay between requests
@@ -242,24 +302,24 @@ const generateImageContent = async (prompts: string[], network: string): Promise
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
       } catch (error) {
-        log('error', `DALL-E generation failed for image ${i + 1}`, { error: (error as Error).message });
+        log('error', `DALL-E-3 generation failed for image ${i + 1}`, { error: (error as Error).message });
       }
     }
   }
   
   // Fallback to OpenRouter Flux if no images generated
   if (generatedImages.length === 0 && openRouterApiKey) {
-    log('info', 'Falling back to OpenRouter Flux');
+    log('info', 'Falling back to OpenRouter Flux Schnell');
     
     for (let i = 0; i < maxImages; i++) {
       try {
-        const enhancedPrompt = `${prompts[i]}. High quality, professional, suitable for ${network} social media post. Modern design, vibrant colors, engaging composition.`;
+        const enhancedPrompt = `${prompts[i]}. Professional ${network} social media post, high quality, modern design, vibrant colors.`;
         
         const imageData = await withRetry(async () => {
-          log('info', `Generating image ${i + 1}/${maxImages} with Flux`);
+          log('info', `Generating image ${i + 1}/${maxImages} with Flux Schnell`);
           
           const response = await withTimeout(
-            fetch('https://openrouter.ai/api/v1/images/generations', {
+            fetch('https://openrouter.ai/api/v1/chat/completions', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${openRouterApiKey}`,
@@ -269,31 +329,37 @@ const generateImageContent = async (prompts: string[], network: string): Promise
               },
               body: JSON.stringify({
                 model: 'black-forest-labs/flux-1-schnell',
-                prompt: enhancedPrompt,
-                width: 1024,
-                height: 1024,
-                steps: 4,
-                response_format: 'url'
+                messages: [
+                  {
+                    role: 'user',
+                    content: `Generate a high-quality image: ${enhancedPrompt}`
+                  }
+                ],
+                max_tokens: 1,
+                stream: false
               }),
             }),
-            60000
+            45000
           );
 
           if (!response.ok) {
             const errorText = await response.text();
+            log('error', `Flux API response not ok: ${response.status}`, { errorText });
             throw new Error(`Flux API error ${response.status}: ${errorText}`);
           }
 
           return await response.json();
-        }, 2, 3000);
+        }, 1, 2000); // Reduced retries for Flux
 
+        // Try to extract image URL from different possible response formats
         let imageUrl = null;
-        if (imageData.data?.[0]?.url) {
-          imageUrl = imageData.data[0].url;
-        } else if (imageData.url) {
-          imageUrl = imageData.url;
-        } else if (imageData.images?.[0]?.url) {
-          imageUrl = imageData.images[0].url;
+        if (imageData.choices?.[0]?.message?.content) {
+          // Sometimes the URL is in the message content
+          const content = imageData.choices[0].message.content;
+          const urlMatch = content.match(/https?:\/\/[^\s)]+/);
+          if (urlMatch) {
+            imageUrl = urlMatch[0];
+          }
         }
         
         if (imageUrl) {
@@ -303,12 +369,14 @@ const generateImageContent = async (prompts: string[], network: string): Promise
             format: 'png',
             revised_prompt: prompts[i]
           });
-          log('info', `Image ${i + 1} generated successfully with Flux`);
+          log('info', `Image ${i + 1} generated successfully with Flux Schnell`);
+        } else {
+          log('warn', `No image URL found in Flux response for image ${i + 1}`, { imageData });
         }
         
         // Delay between requests
         if (i < maxImages - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       } catch (error) {
         log('error', `Flux generation failed for image ${i + 1}`, { error: (error as Error).message });
@@ -327,45 +395,45 @@ const generateImageContent = async (prompts: string[], network: string): Promise
         const imageData = await withRetry(async () => {
           log('info', `Generating image ${i + 1}/2 with Stability AI`);
           
+          const formData = new FormData();
+          formData.append('prompt', enhancedPrompt);
+          formData.append('output_format', 'png');
+          formData.append('aspect_ratio', '1:1');
+          formData.append('model', 'sd3-medium');
+
           const response = await withTimeout(
-            fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024x1024/text-to-image', {
+            fetch('https://api.stability.ai/v2beta/stable-image/generate/sd3', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${stabilityApiKey}`,
-                'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              body: JSON.stringify({
-                text_prompts: [{ text: enhancedPrompt }],
-                cfg_scale: 7,
-                height: 1024,
-                width: 1024,
-                samples: 1,
-                steps: 30,
-              }),
+              body: formData,
             }),
             90000 // 90 second timeout for Stability
           );
 
           if (!response.ok) {
             const errorText = await response.text();
+            log('error', `Stability API error details`, { status: response.status, errorText });
             throw new Error(`Stability API error ${response.status}: ${errorText}`);
           }
 
           return await response.json();
         }, 2, 5000);
 
-        const artifact = imageData.artifacts?.[0];
-        if (artifact?.base64) {
-          const dataUrl = `data:image/png;base64,${artifact.base64}`;
+        if (imageData.image) {
+          const dataUrl = `data:image/png;base64,${imageData.image}`;
           generatedImages.push({
             prompt: prompts[i],
             url: dataUrl,
-            image: artifact.base64,
+            image: imageData.image,
             format: 'png',
             revised_prompt: prompts[i]
           });
           log('info', `Image ${i + 1} generated successfully with Stability AI`);
+        } else {
+          log('warn', `No image data in Stability response for image ${i + 1}`, { imageData });
         }
         
         // Delay between requests
